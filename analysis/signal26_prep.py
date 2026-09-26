@@ -161,11 +161,19 @@ m["target"] = m["first_total"] + 1
 m["chasing_team"] = second["team"]
 m["second_total"] = second["total"]
 
-meth = col(df, "method", "result_method")
-dl_ids = set(df.loc[df[meth].astype(str).str.contains("D/L|DLS", case=False, na=False), "match_id"]) if meth else set()
-# Heuristic too: first innings stopped short (<120 legal balls, <10 wkts) = reduced-overs match
-short = first[(first.legal < 120) & (first.wkts < 10)].index
-m["flag_dl_or_reduced"] = m.index.isin(dl_ids | set(short))
+dl_ids = set()
+for mc in [c for c in df.columns if re.search(r"method|outcome", c, re.I)]:
+    dl_ids |= set(df.loc[df[mc].astype(str).str.contains(r"D/L|DLS|Duckworth", case=False, na=False), "match_id"])
+# Heuristics (catch rain even without a method column):
+#  - first innings stopped short (<120 legal balls, not all out)
+#  - chase won without reaching first-innings total + 1 (revised target, e.g. 2023 final CSK 171 v GT 214)
+#  - chase stopped short without reaching target and not all out (rain, result by DLS)
+short1 = set(first[(first.legal < 120) & (first.wkts < 10)].index)
+sec = second.join(first[["total"]].rename(columns={"total": "t1"}))
+sec = sec.join(m[["winner"]])
+won_short = set(sec[(sec.winner == sec.team) & (sec.total <= sec.t1)].index)
+stopped = set(sec[(sec.legal < 120) & (sec.wkts < 10) & (sec.total <= sec.t1)].index)
+m["flag_dl_or_reduced"] = m.index.isin(dl_ids | short1 | won_short | stopped)
 m["flag_no_result"] = m["winner"].isna() | ~m["winner"].isin(set(df["batting_team"].dropna())) | m["second_total"].isna()
 m["flag_tie"] = m["second_total"] == m["first_total"]
 m["model_ok"] = ~(m.flag_dl_or_reduced | m.flag_no_result | m.flag_tie)
