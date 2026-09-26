@@ -100,14 +100,14 @@ HAVING SUM(valid_ball) >= 300
 ORDER BY bowler_msi DESC;
 
 
--- ============ Q7 · Sheet "final_2025_worm"  (win-probability line for the hero match)
-SELECT delivery_seq, innings, over_display, ball, batter, bowler, runs_total, is_wicket,
+-- ============ Q7 · Sheet "finals_worm"  (win-probability line for every final; filter season_year on the chart)
+SELECT season_year, delivery_seq, innings, over_display, ball, batter, bowler, runs_total, is_wicket,
        runs_after, wkts_after, runs_required_after,
        ROUND(wp_after * 100, 1) AS chase_win_prob_pct,
        ROUND(wpa_batting * 100, 1) AS swing_pct_pts
 FROM dataset
-WHERE date LIKE '2025-06-03%' AND innings = 2
-ORDER BY delivery_seq;
+WHERE stage = 'Final' AND innings = 2
+ORDER BY season_year, delivery_seq;
 
 
 -- ============ Q8 · Sheet "garbage_time"  (runs scored after the match was already decided)

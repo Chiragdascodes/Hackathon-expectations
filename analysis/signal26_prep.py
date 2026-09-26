@@ -325,16 +325,20 @@ bw["qualifies"] = bw["balls"] >= MIN_BOWL_BALLS
 bw = bw.reset_index().sort_values("bowler_MSI", ascending=False)
 
 # ---------------------------------------------------------------- 7. story tables
-fin = m[(m["date"] == "2025-06-03")].index
-final_id = fin[0] if len(fin) else m.sort_values("date").index[-1]
+stg = col(df, "stage")
+if stg:
+    fin_ids = df.loc[df[stg].astype(str).str.strip().str.lower() == "final", "match_id"].unique()
+else:
+    fin_ids = m[m["date"] == "2025-06-03"].index
+fin_ids = list(fin_ids) if len(fin_ids) else [m.sort_values("date").index[-1]]
 worm_cols = ["match_id", "innings", "over_display", "ball", "batting_team", "batter", "bowler", "runs_total",
              "is_wicket", "runs_after", "wkts_after", "balls_left_after", "runs_required_after",
              "wp_before", "wp_after", "wpa_batting"]
-worm = df[df.match_id == final_id][[c for c in worm_cols if c in df]].copy()
-worm["ball_seq"] = np.arange(1, len(worm) + 1)
+worm = df[df.match_id.isin(fin_ids)][["season_year"] + [c for c in worm_cols if c in df]].copy()
+worm["ball_seq"] = worm.groupby("match_id").cumcount() + 1
 for c in ["wp_before", "wp_after", "wpa_batting"]:
     worm[c] = (worm[c] * 100).round(1)
-over_swing = (worm[worm.innings == 2].groupby("over_display")
+over_swing = (worm[worm.innings == 2].groupby(["season_year", "over_display"])
               .agg(bowler=("bowler", "first"), runs=("runs_total", "sum"), wkts=("is_wicket", "sum"),
                    wp_start=("wp_before", "first"), wp_end=("wp_after", "last")).reset_index())
 over_swing["wp_swing_pct_pts"] = (over_swing["wp_end"] - over_swing["wp_start"]).round(1)
@@ -411,8 +415,8 @@ files = {
     "06_wp_calibration.csv": calib,
     "07_batters_msi.csv": bb,
     "08_bowlers_msi.csv": bw,
-    "09_final_2025_wp_worm.csv": worm,
-    "10_final_2025_over_swings.csv": over_swing,
+    "09_finals_wp_worm.csv": worm,
+    "10_finals_over_swings.csv": over_swing,
     "11_biggest_swing_moments.csv": moments,
     "12_stat_tests.csv": tests,
 }
