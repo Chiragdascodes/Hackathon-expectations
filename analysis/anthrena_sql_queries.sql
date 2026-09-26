@@ -1,5 +1,5 @@
 -- Signal 26 · Anthrena Desk SQL pack
--- Where: open the sheet 01_ipl_2022_2025_clean_balls -> Data -> Query
+-- Where: open the sheet 01_ipl_clean_balls -> Data -> Query
 -- Paste ONE query, Run (preview), then "Use result" -> it becomes a new Sheet.
 -- Rename each new Sheet with the name in its header (double-click the tab).
 -- The active sheet is always called `dataset` inside Query.
