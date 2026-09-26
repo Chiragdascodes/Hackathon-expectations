@@ -379,8 +379,11 @@ tests["p_value"] = tests["p_value"].map(lambda p: p if pd.isna(p) else float(f"{
 tests["significant_5pct"] = tests["p_value"] < 0.05
 
 # ---------------------------------------------------------------- 9. write outputs
-hide = [c for c in df.columns if re.search(r"(_id$|registry|identifier|^row_order$|umpire|referee)", c, re.I) and c != "match_id"]
-clean = df.drop(columns=hide)
+hide = [c for c in df.columns if re.search(r"(_id$|registry|identifier|umpire|referee)", c, re.I) and c != "match_id"]
+clean = df.drop(columns=hide).rename(columns={"row_order": "delivery_seq"})   # delivery order, for SQL ORDER BY
+for c in clean.columns:                                                         # 0/1 flags: easy to filter in Anthrena SQL
+    if clean[c].dtype == bool:
+        clean[c] = clean[c].astype(int)
 note("Hide identifiers", f"dropped {len(hide)} ID/official columns from export: {hide}", len(clean))
 for c in ["wp_before", "wp_after", "wpa_batting", "runs_above_exp", "rrr_before"]:
     clean[c] = clean[c].round(4)
