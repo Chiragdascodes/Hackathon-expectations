@@ -17,7 +17,7 @@ from scipy import stats
 from sklearn.ensemble import HistGradientBoostingClassifier
 from sklearn.model_selection import GroupKFold
 
-FIRST_SEASON = 2022          # 2021-25 = 102,115 rows (> 100k limit), so 2022-25
+FIRST_SEASON = 2022          # fallback; auto-widened below to the widest range under 100k rows
 MIN_BALLS_BAT = 300          # qualifier for batting-average ranking
 MIN_CHASE_BALLS = 150        # qualifier for MSI (chase balls faced)
 MIN_BOWL_BALLS = 300         # qualifier for bowler tables
@@ -47,8 +47,22 @@ print("Columns:", list(df.columns))
 
 df["date"] = pd.to_datetime(df["date"], errors="coerce")
 df["season_year"] = df["date"].dt.year                     # '2020/21'-style labels ignored
+
+# keep men's IPL only (file can also carry Women's Premier League matches)
+gcol, ecol = col(df, "gender"), col(df, "event_name")
+before = len(df)
+if gcol:
+    df = df[df[gcol].astype(str).str.lower().isin(["male", "men", "m"])]
+if ecol:
+    df = df[df[ecol].astype(str).str.contains("Indian Premier League", case=False, na=False)]
+note("Keep men's IPL only", f"{before - len(df)} rows of other competitions (e.g. WPL) removed", len(df))
+
+# widest recent season range that fits the 100k-row import limit
+per_season = df.groupby("season_year").size().sort_index(ascending=False).cumsum()
+fits = per_season[(per_season < 100_000) & (per_season.index >= 2021)]   # floor 2021: 2020 was a UAE-only COVID season
+FIRST_SEASON = int(fits.index.min()) if len(fits) else FIRST_SEASON
 df = df[df["season_year"] >= FIRST_SEASON].copy()
-note("Filter seasons", f"keep {FIRST_SEASON}-{int(df['season_year'].max())} (platform 100k-row limit)", len(df))
+note("Filter seasons", f"keep {FIRST_SEASON}-{int(df['season_year'].max())}: widest range under the 100k-row import limit", len(df))
 
 before = len(df)
 df = df.drop_duplicates(subset=[c for c in df.columns if c != "row_order"])
@@ -106,7 +120,7 @@ g = df.groupby(["match_id", "innings"], sort=False)
 
 df["over_display"] = df["over"].astype(int) + 1
 df["phase"] = pd.cut(df["over"], [-1, 5, 14, 19], labels=["Powerplay", "Middle", "Death"]).astype(str)
-df["era"] = np.where(df["season_year"] >= 2023, "Impact (2023+)", "Pre-Impact (2022)")
+df["era"] = np.where(df["season_year"] >= 2023, "Impact (2023+)", f"Pre-Impact ({FIRST_SEASON}-22)" if FIRST_SEASON < 2022 else "Pre-Impact (2022)")
 
 xt = col(df, "extra_type", "extras_type")
 wd = col(df, "wides")
